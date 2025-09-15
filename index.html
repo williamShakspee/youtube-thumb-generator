@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>YouTube Clickable Image Block</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"] { width: 95%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+    </style>
+    <script src="https://raw.githack.com/salesforce-marketingcloud/blocksdk/master/blocksdk.js"></script>
+</head>
+<body>
+    <div class="control-group">
+        <label for="youtube-url">YouTube Link</label>
+        <input type="text" id="youtube-url" placeholder="e.g., https://www.youtube.com/watch?v=...">
+    </div>
+
+    <div class="control-group">
+        <label for="width-input">Width (in pixels )</label>
+        <input type="number" id="width-input" value="600" min="100">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var sdk = new window.sfdc.BlockSDK();
+            
+            var youtubeUrlInput = document.getElementById('youtube-url');
+            var widthInput = document.getElementById('width-input');
+            var debounceTimeout;
+
+            function getYouTubeId(url) {
+                if (!url) return null;
+                var ID = '';
+                // A robust regex to extract the video ID from various YouTube URL formats
+                var regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/i;
+                var match = url.match(regex);
+                return match ? match[1] : null;
+            }
+
+            function generateHtml(videoId, width) {
+                if (!videoId) {
+                    return '<div style="padding:20px; text-align:center; font-family: Arial, sans-serif; color: #787878">Add a YouTube link to see the preview.</div>';
+                }
+
+                const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+                const playButtonUrl = 'https://i.ibb.co/j39x15D/youtube-play-button.png'; // A generic, hosted play button icon
+
+                return `
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                            <td align="center" style="padding: 0;">
+                                <a href="${videoUrl}" target="_blank" style="display: block; text-decoration: none; position: relative; width: ${width}px; max-width: 100%;">
+                                    <img src="${thumbnailUrl}" alt="YouTube Video Thumbnail" width="${width}" style="display: block; width: 100%; height: auto; border: 0;">
+                                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50% );">
+                                        <img src="${playButtonUrl}" alt="Play Video" width="80" style="width: 80px; height: auto; border: 0;">
+                                    </div>
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+                `;
+            }
+
+            function updateBlock() {
+                var url = youtubeUrlInput.value;
+                var videoId = getYouTubeId(url);
+                var width = parseInt(widthInput.value, 10) || 600;
+                
+                var finalHtml = generateHtml(videoId, width);
+
+                sdk.setContent(finalHtml);
+                sdk.setData({ 
+                    youtubeUrl: url,
+                    width: width
+                });
+            }
+
+            function debounceUpdate() {
+                clearTimeout(debounceTimeout);
+                debounceTimeout = setTimeout(updateBlock, 300);
+            }
+
+            sdk.getData(function (data) {
+                if (data) {
+                    youtubeUrlInput.value = data.youtubeUrl || '';
+                    widthInput.value = data.width || 600;
+                }
+                updateBlock();
+            });
+
+            youtubeUrlInput.addEventListener('input', debounceUpdate);
+            widthInput.addEventListener('input', debounceUpdate);
+        });
+    </script>
+</body>
+</html>
